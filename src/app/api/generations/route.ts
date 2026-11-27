@@ -48,7 +48,22 @@ export async function POST(request: Request) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: "Sign in to create media." }, { status: 401 });
 
-  let referenceImageUrl: string | undefined;\n  if (referenceAssetPath) {\n    if (!referenceAssetPath.startsWith(`${user.id}/inputs/`) || referenceAssetPath.includes("..")) {\n      return NextResponse.json({ error: "Reference image does not belong to this account." }, { status: 403 });\n    }\n    try {\n      const admin = createAdminClient();\n      const { data, error } = await admin.storage.from("lumi-assets").createSignedUrl(referenceAssetPath, 3600);\n      if (error || !data) return NextResponse.json({ error: "Reference image is missing or unavailable." }, { status: 400 });\n      referenceImageUrl = data.signedUrl;\n    } catch {\n      return NextResponse.json({ error: "Reference image storage is unavailable." }, { status: 503 });\n    }\n  }\n\n  const amount = Number.parseInt(process.env[kind === "image" ? "LUMI_IMAGE_CREDIT_COST" : "LUMI_VIDEO_CREDIT_COST"] || (kind === "image" ? "1" : "10"), 10);
+  let referenceImageUrl: string | undefined;
+  if (referenceAssetPath) {
+    if (!referenceAssetPath.startsWith(`${user.id}/inputs/`) || referenceAssetPath.includes("..")) {
+      return NextResponse.json({ error: "Reference image does not belong to this account." }, { status: 403 });
+    }
+    try {
+      const admin = createAdminClient();
+      const { data, error } = await admin.storage.from("lumi-assets").createSignedUrl(referenceAssetPath, 3600);
+      if (error || !data) return NextResponse.json({ error: "Reference image is missing or unavailable." }, { status: 400 });
+      referenceImageUrl = data.signedUrl;
+    } catch {
+      return NextResponse.json({ error: "Reference image storage is unavailable." }, { status: 503 });
+    }
+  }
+
+  const amount = Number.parseInt(process.env[kind === "image" ? "LUMI_IMAGE_CREDIT_COST" : "LUMI_VIDEO_CREDIT_COST"] || (kind === "image" ? "1" : "10"), 10);
   if (!Number.isSafeInteger(amount) || amount < 1) return NextResponse.json({ error: "Generation credit cost is misconfigured." }, { status: 500 });
 
   const { data: job, error: insertError } = await supabase.from("generations")
