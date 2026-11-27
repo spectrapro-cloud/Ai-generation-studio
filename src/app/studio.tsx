@@ -1,0 +1,216 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/browser";
+import {
+  ArrowUpRight, Check, ChevronDown, CircleAlert, Clock3, Film, Image as ImageIcon,
+  LoaderCircle, LogOut, Plus, Sparkles, WandSparkles, Zap
+} from "lucide-react";
+
+type Job = {
+  id: string;
+  kind: "image" | "video";
+  prompt: string;
+  aspect_ratio: string;
+  status: "queued" | "processing" | "succeeded" | "failed" | "storage_failed";
+  provider_status?: string | null;
+  error_message?: string | null;
+  assetUrl?: string | null;
+  asset_path?: string | null;
+  created_at: string;
+};
+
+const ratios = ["1:1", "3:2", "2:3", "16:9", "9:16", "4:3", "3:4"];
+
+export default function Studio() {
+  const [user, setUser] = useState<User | null>(null);
+  const [email, setEmail] = useState("");
+  const [linkSent, setLinkSent] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [configurationError, setConfigurationError] = useState("");
+  const [kind, setKind] = useState<"image" | "video">("image");
+  const [prompt, setPrompt] = useState("");
+  const [ratio, setRatio] = useState("1:1");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [credits, setCredits] = useState<number | null>(null);
+
+  const supabase = useMemo(() => {
+    try { return createClient(); }
+    catch (error) {
+      setConfigurationError(error instanceof Error ? error.message : "Supabase is not configured.");
+      return null;
+    }
+  }, []);
+
+  const refreshAccount = useCallback(async () => {
+    if (!supabase) return;
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    setUser(currentUser);
+    if (!currentUser) return;
+    const { data } = await supabase.from("profiles").select("credits").eq("id", currentUser.id).single();
+    if (data) setCredits(data.credits);
+    const response = await fetch("/api/generations?limit=12", { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      setJobs(payload.generations || []);
+    }
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void refreshAccount();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      void refreshAccount();
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase, refreshAccount]);
+
+  useEffect(() => {
+    if (!activeJob || !["queued", "processing"].includes(activeJob.status)) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/generations/${activeJob.id}`, { cache: "no-store" });
+      const payload = await response.json();
+      if (response.ok) {
+        setActiveJob(payload);
+        if (!["queued", "processing"].includes(payload.status)) {
+          window.clearInterval(timer);
+          await refreshAccount();
+        }
+      }
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [activeJob?.id, activeJob?.status, refreshAccount]);
+
+  async function sendMagicLink(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+    setAuthError("");
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if (error) setAuthError(error.message);
+    else setLinkSent(true);
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
+    setCredits(null);
+    setJobs([]);
+    setActiveJob(null);
+  }
+
+  async function generate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setBusy(true);
+    setActiveJob(null);
+    try {
+      const response = await fetch("/api/generations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, prompt, aspectRatio: ratio })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Generation request failed.");
+      setActiveJob({
+        id: payload.id, kind, prompt, aspect_ratio: ratio, status: payload.status,
+        created_at: new Date().toISOString()
+      });
+      setPrompt("");
+      setMessage("Your request was accepted by the configured provider.");
+      await refreshAccount();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not start generation.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const visibleJobs = activeJob ? [activeJob, ...jobs.filter((job) => job.id !== activeJob.id)] : jobs;
+
+  if (configurationError) {
+    return <main className="config-screen"><div className="config-card"><div className="brand-mark"><Sparkles size={20}/></div><p className="eyebrow">LUMI AI / SERVICE SETUP</p><h1>Workspace setup required</h1><p>{configurationError}</p><p className="muted">This application does not contain demo data. The workspace will become available when its Supabase project is configured.</p></div></main>;
+  }
+
+  if (!user) {
+    return <main className="auth-screen">
+      <div className="auth-glow"/>
+      <div className="auth-card">
+        <div className="brand-lockup"><span className="brand-mark"><Sparkles size={20}/></span><span>LUMI<span className="brand-ai"> AI</span></span></div>
+        <p className="eyebrow">YOUR CREATIVE INTELLIGENCE STUDIO</p>
+        <h1>Make the unreal,<br/><span>real.</span></h1>
+        <p className="auth-copy">Create extraordinary images and cinematic video with real generative models, all in one focused workspace.</p>
+        <form onSubmit={sendMagicLink} className="auth-form">
+          <label htmlFor="email">Email address</label>
+          <input id="email" type="email" required autoComplete="email" placeholder="you@company.com" value={email} onChange={(event) => setEmail(event.target.value)}/>
+          <button className="primary-button" type="submit">Continue with email <ArrowUpRight size={16}/></button>
+        </form>
+        {linkSent && <p className="success-note"><Check size={15}/> Sign-in link sent. Check your inbox to continue.</p>}
+        {authError && <p className="error-note"><CircleAlert size={15}/>{authError}</p>}
+        <p className="auth-footnote">Secure, passwordless sign-in powered by your LUMI account.</p>
+      </div>
+      <footer className="auth-footer">LUMI AI <span>·</span> CREATE WITHOUT LIMITS</footer>
+    </main>;
+  }
+
+  return <main className="app-shell">
+    <aside className="sidebar">
+      <div className="brand-lockup"><span className="brand-mark"><Sparkles size={18}/></span><span>LUMI<span className="brand-ai"> AI</span></span></div>
+      <div className="workspace-switch"><span className="workspace-avatar">L</span><span><b>Personal workspace</b><small>Creator plan</small></span><ChevronDown size={15}/></div>
+      <p className="side-label">WORKSPACE</p>
+      <a className="side-link active" href="#create"><WandSparkles size={17}/> Create</a>
+      <a className="side-link" href="#library"><ImageIcon size={17}/> My generations</a>
+      <div className="sidebar-bottom">
+        <div className="credit-card"><div className="credit-top"><span>Available credits</span><Zap size={15}/></div><strong>{credits === null ? "—" : credits.toLocaleString()}</strong><small>Credits are managed securely on your account.</small></div>
+        <div className="user-row"><div className="user-avatar">{(user.email || "U").slice(0,1).toUpperCase()}</div><div className="user-details"><b>{user.email}</b><small>Signed in</small></div><button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={16}/></button></div>
+      </div>
+    </aside>
+
+    <section className="main-panel">
+      <header className="topbar"><div className="breadcrumb">Studio <span>/</span> Create</div><div className="top-actions"><span className="secure-pill"><span/> Secure workspace</span><button className="avatar-button">{(user.email || "U").slice(0,1).toUpperCase()}</button></div></header>
+      <div className="content-wrap">
+        <section className="hero-copy"><div className="eyebrow"><span className="eyebrow-line"/> THE CREATIVE ENGINE</div><h1>Imagine it.<br/><span>Bring it to life.</span></h1><p>Turn a thought into a visual experience. Start with an image or build a moving world with video.</p></section>
+
+        <section className="creator-card" id="create">
+          <div className="creator-heading"><div><span className="section-kicker">01 / GENERATION</span><h2>What are we creating?</h2></div><div className="live-indicator"><span/> REAL MODEL EXECUTION</div></div>
+          <div className="mode-switch">
+            <button className={kind === "image" ? "mode-option selected" : "mode-option"} onClick={() => setKind("image")} type="button"><ImageIcon size={17}/> Image <small>Still imagery</small></button>
+            <button className={kind === "video" ? "mode-option selected" : "mode-option"} onClick={() => setKind("video")} type="button"><Film size={17}/> Video <small>Motion &amp; story</small></button>
+          </div>
+          <form onSubmit={generate}>
+            <label className="field-label" htmlFor="prompt">Describe your vision</label>
+            <textarea id="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} minLength={3} maxLength={3000} required placeholder={kind === "image" ? "A cinematic editorial portrait, soft directional light, rich natural textures, shot on medium format..." : "A slow cinematic tracking shot through a futuristic glass city at blue hour, atmospheric reflections..."}/>
+            <div className="prompt-meta"><span>Be specific about lighting, composition, camera and mood.</span><span>{prompt.length}/3000</span></div>
+            <div className="control-row">
+              <div className="ratio-control"><label htmlFor="ratio">Aspect ratio</label><select id="ratio" value={ratio} onChange={(event) => setRatio(event.target.value)}>{ratios.map((value) => <option key={value}>{value}</option>)}</select></div>
+              <div className="quality-note"><Sparkles size={15}/><span>Output quality depends on the selected model and its supported settings.</span></div>
+              <button className="primary-button generate-button" type="submit" disabled={busy || prompt.trim().length < 3}>{busy ? <><LoaderCircle className="spin" size={17}/> Connecting…</> : <>Generate <ArrowUpRight size={17}/></>}</button>
+            </div>
+          </form>
+          {message && <div className={message.includes("accepted") ? "inline-message" : "inline-message error"}>{message}</div>}
+        </section>
+
+        {activeJob && <section className="result-section">
+          <div className="section-heading"><div><span className="section-kicker">02 / LIVE JOB</span><h2>Your creation</h2></div><span className="job-id">JOB {activeJob.id.slice(0,8).toUpperCase()}</span></div>
+          <div className="result-card">
+            {activeJob.assetUrl ? (activeJob.kind === "image" ? <img className="generated-media" src={activeJob.assetUrl} alt="Generated image"/> : <video className="generated-media" src={activeJob.assetUrl} controls playsInline/>) : <div className="result-placeholder"><div className="result-orb"><Sparkles size={24}/></div><b>{activeJob.status === "queued" ? "Waiting in queue" : activeJob.status === "processing" ? "Creating your vision" : activeJob.status === "storage_failed" ? "Storage needs attention" : activeJob.status === "failed" ? "Generation failed" : "Preparing your result"}</b><span>{activeJob.error_message || (["queued","processing"].includes(activeJob.status) ? "Status is being checked against the provider. Keep this workspace open." : "The provider completed, but the media file has not been confirmed in storage.")}</span>{["queued","processing"].includes(activeJob.status) && <LoaderCircle className="spin" size={18}/>}</div>}
+            <div className="result-details"><div><span className="status-label">{activeJob.status.replace("_"," ")}</span><p>{activeJob.prompt}</p></div>{activeJob.assetUrl && <a className="download-button" href={activeJob.assetUrl} target="_blank" rel="noreferrer">Open file <ArrowUpRight size={15}/></a>}</div>
+          </div>
+        </section>}
+
+        <section className="library-section" id="library">
+          <div className="section-heading"><div><span className="section-kicker">03 / YOUR WORK</span><h2>Recent generations</h2></div><span className="library-count">{jobs.length} records</span></div>
+          {visibleJobs.length ? <div className="history-list">{visibleJobs.map((job) => <button className="history-item" key={job.id} onClick={() => setActiveJob(job)}><span className="history-icon">{job.kind === "image" ? <ImageIcon size={18}/> : <Film size={18}/>}</span><span className="history-copy"><b>{job.prompt}</b><small>{new Date(job.created_at).toLocaleString()} · {job.kind}</small></span><span className={job.status === "succeeded" ? "history-status complete" : job.status === "failed" ? "history-status failed" : "history-status"}>{job.status.replace("_"," ")}</span></button>)}</div> : <div className="empty-library"><div><Plus size={20}/></div><b>Your creative history starts here</b><span>Completed and in-progress generations will appear here. No sample work is inserted.</span></div>}
+        </section>
+        <footer className="app-footer"><span>LUMI AI</span><span>Real models. Real work. No placeholders.</span><span>© 2026</span></footer>
+      </div>
+    </section>
+  </main>;
+}
