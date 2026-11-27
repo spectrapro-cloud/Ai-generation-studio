@@ -31,6 +31,7 @@ export default function Studio() {
   const [authError, setAuthError] = useState("");
   const [kind, setKind] = useState<"image" | "video">("image");
   const [prompt, setPrompt] = useState("");
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [ratio, setRatio] = useState("1:1");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -111,10 +112,19 @@ export default function Studio() {
     setBusy(true);
     setActiveJob(null);
     try {
+      let referenceAssetPath: string | undefined;
+      if (referenceFile) {
+        const upload = new FormData();
+        upload.append("file", referenceFile);
+        const uploadResponse = await fetch("/api/uploads", { method: "POST", body: upload });
+        const uploadPayload = await uploadResponse.json();
+        if (!uploadResponse.ok) throw new Error(uploadPayload.error || "Reference image upload failed.");
+        referenceAssetPath = uploadPayload.path;
+      }
       const response = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, prompt, aspectRatio: ratio })
+        body: JSON.stringify({ kind, prompt, aspectRatio: ratio, referenceAssetPath })
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Generation request failed.");
@@ -123,6 +133,7 @@ export default function Studio() {
         created_at: new Date().toISOString()
       });
       setPrompt("");
+      setReferenceFile(null);
       setMessage("Your request was accepted by the configured provider.");
       await refreshAccount();
     } catch (error) {
@@ -185,6 +196,7 @@ export default function Studio() {
           </div>
           <form onSubmit={generate}>
             <label className="field-label" htmlFor="prompt">Describe your vision</label>
+            <div className="reference-upload"><label htmlFor="reference-image">Reference image <span>Optional · JPEG, PNG or WebP · up to 20 MB</span></label><input id="reference-image" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setReferenceFile(event.target.files?.[0] || null)}/>{referenceFile && <button type="button" className="remove-reference" onClick={() => setReferenceFile(null)}>Remove {referenceFile.name}</button>}</div>
             <textarea id="prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} minLength={3} maxLength={3000} required placeholder={kind === "image" ? "A cinematic editorial portrait, soft directional light, rich natural textures, shot on medium format..." : "A slow cinematic tracking shot through a futuristic glass city at blue hour, atmospheric reflections..."}/>
             <div className="prompt-meta"><span>Be specific about lighting, composition, camera and mood.</span><span>{prompt.length}/3000</span></div>
             <div className="control-row">
