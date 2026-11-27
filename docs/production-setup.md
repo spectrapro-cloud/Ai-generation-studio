@@ -33,7 +33,7 @@ Checkout creates a Stripe-hosted one-time payment. Credits are granted only afte
 
 ## Deployment
 
-The Render Blueprint is configured for the `main` branch. Add all required secrets to the Render service before approving the first sync. The Render web service is a paid Starter plan; Render requires billing details and explicit approval before creating billable infrastructure.
+The Render Blueprint is configured for the `main` branch and uses Render's Free web-service plan to avoid a paid hosting subscription. Free instances can sleep after inactivity and have limited memory/compute, so expect cold starts and treat this as a test deployment rather than production-grade hosting. Add required secrets to the service before approving the first sync. The Free plan does not remove the need for Supabase and Replicate accounts or any usage-based charges from external providers.
 
 ## Verification
 
