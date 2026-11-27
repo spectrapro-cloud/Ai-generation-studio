@@ -28,7 +28,8 @@ async function storeOutput(userId: string, jobId: string, kind: "image" | "video
     throw new Error("Provider output URL failed the trusted-host check.");
   }
 
-  const response = await fetch(source, { cache: "no-store", signal: AbortSignal.timeout(45_000) });
+  const response = await fetch(source, { cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(45_000) });
+  if (response.status >= 300 && response.status < 400) throw new Error("Provider output attempted an unexpected redirect.");
   if (!response.ok) throw new Error(`Could not retrieve provider output (HTTP ${response.status}).`);
   const mime = (response.headers.get("content-type") || "").split(";")[0].toLowerCase();
   const allowed = kind === "image"
@@ -41,6 +42,14 @@ async function storeOutput(userId: string, jobId: string, kind: "image" | "video
   if (declaredSize > maxBytes) throw new Error("Generated media exceeds the configured storage size limit.");
   const buffer = Buffer.from(await response.arrayBuffer());
   if (buffer.byteLength > maxBytes) throw new Error("Generated media exceeds the configured storage size limit.");
+  const validImage = mime === "image/png"
+    ? buffer.length >= 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    : mime === "image/jpeg" ? buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff
+    : mime === "image/webp" ? buffer.length >= 12 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP" : false;
+  const validVideo = mime === "video/webm"
+    ? buffer.length >= 4 && buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+    : (mime === "video/mp4" || mime === "video/quicktime") && buffer.length >= 12 && buffer.toString("ascii", 4, 8) === "ftyp";
+  if (kind === "image" ? !validImage : !validVideo) throw new Error("Generated media bytes do not match the provider's declared media type.");
 
   const extension = mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "video/webm" ? "webm" : mime === "video/quicktime" ? "mov" : "mp4";
   const path = `${userId}/${jobId}/original.${extension}`;
