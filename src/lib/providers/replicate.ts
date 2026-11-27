@@ -71,10 +71,10 @@ async function replicateFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export async function createPrediction(kind: MediaKind, prompt: string, aspectRatio: string) {
+export async function createPrediction(kind: MediaKind, prompt: string, aspectRatio: string, imageUrl?: string) {
   const model = modelFor(kind);
   const template = process.env[kind === "image" ? "REPLICATE_IMAGE_INPUT_TEMPLATE" : "REPLICATE_VIDEO_INPUT_TEMPLATE"];
-  const input = applyTemplate(template, { prompt, aspect_ratio: aspectRatio });
+  const input = applyTemplate(template, { prompt, aspect_ratio: aspectRatio, image_url: imageUrl || "" });
   return replicateFetch<ReplicatePrediction>(`/models/${model}/predictions`, {
     method: "POST",
     headers: { Prefer: "wait=1" },
