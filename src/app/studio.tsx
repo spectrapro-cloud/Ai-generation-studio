@@ -9,7 +9,9 @@ import {
   LoaderCircle, LogOut, Plus, Sparkles, WandSparkles, Zap
 } from "lucide-react";
 
-type AdminUser = { id: string; email: string; display_name: string | null; credits: number; role: string };\n\ntype Job = {
+type AdminUser = { id: string; email: string; display_name: string | null; credits: number; role: string };
+
+type Job = {
   id: string;
   kind: "image" | "video";
   prompt: string;
@@ -40,7 +42,8 @@ export default function Studio() {
   const [credits, setCredits] = useState<number | null>(null);
   const [role, setRole] = useState<"customer" | "admin">("customer");
   const [billingMessage, setBillingMessage] = useState("");
-  const [adminUserId, setAdminUserId] = useState("");\n  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminUserId, setAdminUserId] = useState("");
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminAmount, setAdminAmount] = useState("50");
   const [adminReason, setAdminReason] = useState("");
 
@@ -56,7 +59,15 @@ export default function Studio() {
     setUser(currentUser);
     if (!currentUser) return;
     const { data } = await supabase.from("profiles").select("credits,role").eq("id", currentUser.id).single();
-    if (data) {\n      setCredits(data.credits);\n      const isAdmin = data.role === "admin";\n      setRole(isAdmin ? "admin" : "customer");\n      if (isAdmin) {\n        const adminResponse = await fetch("/api/admin/credits", { cache: "no-store" });\n        if (adminResponse.ok) { const adminPayload = await adminResponse.json(); setAdminUsers(adminPayload.users || []); }\n      } else setAdminUsers([]);\n    }
+    if (data) {
+      setCredits(data.credits);
+      const isAdmin = data.role === "admin";
+      setRole(isAdmin ? "admin" : "customer");
+      if (isAdmin) {
+        const adminResponse = await fetch("/api/admin/credits", { cache: "no-store" });
+        if (adminResponse.ok) { const adminPayload = await adminResponse.json(); setAdminUsers(adminPayload.users || []); }
+      } else setAdminUsers([]);
+    }
     const response = await fetch("/api/generations?limit=12", { cache: "no-store" });
     if (response.ok) {
       const payload = await response.json();
