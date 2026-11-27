@@ -26,6 +26,12 @@ type Job = {
 
 const ratios = ["1:1", "3:2", "2:3", "16:9", "9:16", "4:3", "3:4"];
 
+const previewJobs: Job[] = [
+  { id: "preview-img-01", kind: "image", prompt: "Editorial portrait, warm studio light, sculptural shadows and natural skin texture", aspect_ratio: "4:5", status: "succeeded", created_at: "2026-11-26T14:20:00.000Z" },
+  { id: "preview-img-02", kind: "image", prompt: "Minimalist product campaign for a glass skincare bottle on travertine", aspect_ratio: "1:1", status: "succeeded", created_at: "2026-11-25T10:15:00.000Z" },
+  { id: "preview-vid-03", kind: "video", prompt: "Cinematic aerial movement above a futuristic coastal city at blue hour", aspect_ratio: "16:9", status: "processing", created_at: "2026-11-24T18:40:00.000Z" }
+];
+
 export default function Studio() {
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
@@ -51,7 +57,8 @@ export default function Studio() {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
     try { return createClient(); } catch { return null; }
   }, []);
-  const configurationError = supabase ? "" : "Supabase is not configured. Ask the administrator to finish the service setup.";
+  const previewMode = !supabase;
+  const displayEmail = previewMode ? "preview@lumi.local" : user?.email || "LUMI creator";
 
   const refreshAccount = useCallback(async () => {
     if (!supabase) return;
@@ -182,13 +189,11 @@ export default function Studio() {
     }
   }
 
-  const visibleJobs = activeJob ? [activeJob, ...jobs.filter((job) => job.id !== activeJob.id)] : jobs;
+  const displayedJobs = previewMode ? previewJobs : jobs;
+  const displayedCredits = previewMode ? 240 : credits;
+  const visibleJobs = activeJob ? [activeJob, ...displayedJobs.filter((job) => job.id !== activeJob.id)] : displayedJobs;
 
-  if (configurationError) {
-    return <main className="config-screen"><div className="config-card"><div className="brand-mark"><Sparkles size={20}/></div><p className="eyebrow">LUMI AI / SERVICE SETUP</p><h1>Workspace setup required</h1><p>{configurationError}</p><p className="muted">This application does not contain demo data. The workspace will become available when its Supabase project is configured.</p></div></main>;
-  }
-
-  if (!user) {
+  if (!user && !previewMode) {
     return <main className="auth-screen">
       <div className="auth-glow"/>
       <div className="auth-card">
@@ -212,27 +217,29 @@ export default function Studio() {
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand-lockup"><span className="brand-mark"><Sparkles size={18}/></span><span>LUMI<span className="brand-ai"> AI</span></span></div>
-      <div className="workspace-switch"><span className="workspace-avatar">L</span><span><b>Personal workspace</b><small>Creator plan</small></span><ChevronDown size={15}/></div>
+      <div className="workspace-switch"><span className="workspace-avatar">L</span><span><b>{previewMode ? "Preview workspace" : "Personal workspace"}</b><small>{previewMode ? "Sample account" : "Creator plan"}</small></span><ChevronDown size={15}/></div>
       <p className="side-label">WORKSPACE</p>
       <a className="side-link active" href="#create"><WandSparkles size={17}/> Create</a>
       <a className="side-link" href="#library"><ImageIcon size={17}/> My generations</a>
       <div className="sidebar-bottom">
-        <div className="credit-card"><div className="credit-top"><span>Available credits</span><Zap size={15}/></div><strong>{credits === null ? "—" : credits.toLocaleString()}</strong><small>Credits are managed securely on your account.</small></div>
-        <div className="user-row"><div className="user-avatar">{(user.email || "U").slice(0,1).toUpperCase()}</div><div className="user-details"><b>{user.email}</b><small>Signed in</small></div><button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={16}/></button></div>
+        <div className="credit-card"><div className="credit-top"><span>{previewMode ? "Sample credits" : "Available credits"}</span><Zap size={15}/></div><strong>{displayedCredits === null ? "—" : displayedCredits.toLocaleString()}</strong><small>{previewMode ? "Illustrative balance only · not spendable" : "Credits are managed securely on your account."}</small></div>
+        <div className="user-row"><div className="user-avatar">{(user.email || "U").slice(0,1).toUpperCase()}</div><div className="user-details"><b>{displayEmail}</b><small>{previewMode ? "Preview session" : "Signed in"}</small></div>{!previewMode && <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={16}/></button>}</div>
       </div>
     </aside>
 
     <section className="main-panel">
-      <header className="topbar"><div className="breadcrumb">Studio <span>/</span> Create</div><div className="top-actions"><span className="secure-pill"><span/> Secure workspace</span><button className="avatar-button">{(user.email || "U").slice(0,1).toUpperCase()}</button></div></header>
+      <header className="topbar"><div className="breadcrumb">Studio <span>/</span> Create</div><div className="top-actions"><span className="secure-pill">{previewMode ? "● PREVIEW MODE · SAMPLE DATA" : <><span/> Secure workspace</>}</span><button className="avatar-button">{displayEmail.slice(0,1).toUpperCase()}</button></div></header>
       <div className="content-wrap">
         <section className="hero-copy"><div className="eyebrow"><span className="eyebrow-line"/> THE CREATIVE ENGINE</div><h1>Imagine it.<br/><span>Bring it to life.</span></h1><p>Turn a thought into a visual experience. Start with an image or build a moving world with video.</p></section>
 
-        <section className="creator-card billing-card" id="credits"><div className="creator-heading"><div><span className="section-kicker">ACCOUNT / CREDITS</span><h2>Get more creative credits</h2></div><span className="job-id">{credits === null ? "—" : credits.toLocaleString()} AVAILABLE</span></div><div className="credit-packages"><button type="button" onClick={() => void buyCredits("starter")}><b>Starter</b><strong>$4.99</strong><span>100 credits</span></button><button type="button" onClick={() => void buyCredits("creator")}><b>Creator</b><strong>$19.99</strong><span>550 credits</span></button><button type="button" onClick={() => void buyCredits("studio")}><b>Studio</b><strong>$49.99</strong><span>1,600 credits</span></button></div>{billingMessage && <p className="inline-message">{billingMessage}</p>}<p className="muted">Secure one-time checkout. Credits are added after Stripe confirms successful payment.</p></section>
+        {previewMode && <section className="preview-notice" role="status"><div><b>Temporary preview mode</b><span>You are exploring the real LUMI studio interface with sample data. No account, credits, purchases or AI generation are active.</span></div><span className="preview-tag">DEMO DATA</span></section>}
+
+        <section className="creator-card billing-card" id="credits"><div className="creator-heading"><div><span className="section-kicker">ACCOUNT / CREDITS</span><h2>Get more creative credits</h2></div><span className="job-id">{credits === null ? "—" : credits.toLocaleString()} AVAILABLE</span></div><div className="credit-packages"><button type="button" disabled={previewMode} onClick={() => void buyCredits("starter")}><b>Starter</b><strong>$4.99</strong><span>100 credits</span></button><button type="button" disabled={previewMode} onClick={() => void buyCredits("creator")}><b>Creator</b><strong>$19.99</strong><span>550 credits</span></button><button type="button" disabled={previewMode} onClick={() => void buyCredits("studio")}><b>Studio</b><strong>$49.99</strong><span>1,600 credits</span></button></div>{billingMessage && <p className="inline-message">{billingMessage}</p>}<p className="muted">{previewMode ? "Preview only: package prices and credit amounts are illustrative. Checkout is disabled." : "Secure one-time checkout. Credits are added after Stripe confirms successful payment."}</p></section>
 
         {role === "admin" && <section className="creator-card admin-card"><div className="creator-heading"><div><span className="section-kicker">ADMINISTRATION</span><h2>Manage user credits</h2></div><span className="live-indicator">ADMIN ONLY</span></div><form onSubmit={adjustCredits} className="admin-credit-form"><label>Account<select value={adminUserId} onChange={(event) => setAdminUserId(event.target.value)} required><option value="">Choose a user account</option>{adminUsers.map((item) => <option key={item.id} value={item.id}>{item.email || item.id} · {item.credits} credits</option>)}</select></label><label>Credit change<input type="number" value={adminAmount} onChange={(event) => setAdminAmount(event.target.value)} required min={-100000} max={100000}/></label><label>Reason<input value={adminReason} onChange={(event) => setAdminReason(event.target.value)} required minLength={5} maxLength={500} placeholder="Support adjustment or promotion"/></label><button className="primary-button" type="submit">Apply adjustment <ArrowUpRight size={16}/></button></form></section>}
 
         <section className="creator-card" id="create">
-          <div className="creator-heading"><div><span className="section-kicker">01 / GENERATION</span><h2>What are we creating?</h2></div><div className="live-indicator"><span/> REAL MODEL EXECUTION</div></div>
+          <div className="creator-heading"><div><span className="section-kicker">01 / GENERATION</span><h2>What are we creating?</h2></div><div className="live-indicator">{previewMode ? "PREVIEW · NO MODEL CONNECTED" : <><span/> REAL MODEL EXECUTION</>}</div></div>
           <div className="mode-switch">
             <button className={kind === "image" ? "mode-option selected" : "mode-option"} onClick={() => setKind("image")} type="button"><ImageIcon size={17}/> Image <small>Still imagery</small></button>
             <button className={kind === "video" ? "mode-option selected" : "mode-option"} onClick={() => setKind("video")} type="button"><Film size={17}/> Video <small>Motion &amp; story</small></button>
@@ -245,7 +252,7 @@ export default function Studio() {
             <div className="control-row">
               <div className="ratio-control"><label htmlFor="ratio">Aspect ratio</label><select id="ratio" value={ratio} onChange={(event) => setRatio(event.target.value)}>{ratios.map((value) => <option key={value}>{value}</option>)}</select></div>
               <div className="quality-note"><Sparkles size={15}/><span>Output quality depends on the selected model and its supported settings.</span></div>
-              <button className="primary-button generate-button" type="submit" disabled={busy || prompt.trim().length < 3}>{busy ? <><LoaderCircle className="spin" size={17}/> Connecting…</> : <>Generate <ArrowUpRight size={17}/></>}</button>
+              <button className="primary-button generate-button" type="submit" disabled={previewMode || busy || prompt.trim().length < 3}>{previewMode ? "Preview only · generation off" : busy ? <><LoaderCircle className="spin" size={17}/> Connecting…</> : <>Generate <ArrowUpRight size={17}/></>}</button>
             </div>
           </form>
           {message && <div className={message.includes("accepted") ? "inline-message" : "inline-message error"}>{message}</div>}
@@ -260,10 +267,10 @@ export default function Studio() {
         </section>}
 
         <section className="library-section" id="library">
-          <div className="section-heading"><div><span className="section-kicker">03 / YOUR WORK</span><h2>Recent generations</h2></div><span className="library-count">{jobs.length} records</span></div>
-          {visibleJobs.length ? <div className="history-list">{visibleJobs.map((job) => <button className="history-item" key={job.id} onClick={() => setActiveJob(job)}><span className="history-icon">{job.kind === "image" ? <ImageIcon size={18}/> : <Film size={18}/>}</span><span className="history-copy"><b>{job.prompt}</b><small>{new Date(job.created_at).toLocaleString()} · {job.kind}</small></span><span className={job.status === "succeeded" ? "history-status complete" : job.status === "failed" ? "history-status failed" : "history-status"}>{job.status.replace("_"," ")}</span></button>)}</div> : <div className="empty-library"><div><Plus size={20}/></div><b>Your creative history starts here</b><span>Completed and in-progress generations will appear here. No sample work is inserted.</span></div>}
+          <div className="section-heading"><div><span className="section-kicker">03 / YOUR WORK</span><h2>Recent generations</h2></div><span className="library-count">{displayedJobs.length} {previewMode ? "sample records" : "records"}</span></div>
+          {visibleJobs.length ? <div className="history-list">{visibleJobs.map((job) => <button className="history-item" key={job.id} onClick={() => setActiveJob(job)}><span className="history-icon">{job.kind === "image" ? <ImageIcon size={18}/> : <Film size={18}/>}</span><span className="history-copy"><b>{job.prompt}</b><small>{new Date(job.created_at).toLocaleString()} · {job.kind}</small></span><span className={job.status === "succeeded" ? "history-status complete" : job.status === "failed" ? "history-status failed" : "history-status"}>{job.status.replace("_"," ")}</span></button>)}</div> : <div className="empty-library"><div><Plus size={20}/></div><b>Your creative history starts here</b><span>{previewMode ? "Sample history is shown above for interface exploration only." : "Completed and in-progress generations will appear here. No sample work is inserted."}</span></div>}
         </section>
-        <footer className="app-footer"><span>LUMI AI</span><span>Real models. Real work. No placeholders.</span><span>© 2026</span></footer>
+        <footer className="app-footer"><span>LUMI AI</span><span>{previewMode ? "Temporary preview · sample data only" : "Real models. Real work. No placeholders."}</span><span>© 2026</span></footer>
       </div>
     </section>
   </main>;
