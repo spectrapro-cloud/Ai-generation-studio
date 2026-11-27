@@ -3,7 +3,7 @@ services:
     name: lumi-ai
     runtime: node
     region: ohio
-    plan: starter
+    plan: free
     branch: main
     buildCommand: npm install && npm run build
     startCommand: npm start
