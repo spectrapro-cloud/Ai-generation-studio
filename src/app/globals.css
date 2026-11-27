@@ -33,3 +33,13 @@
 .admin-credit-form input, .admin-credit-form select { min-width:0; width:100%; padding:12px; border:1px solid var(--line,rgba(255,255,255,.15)); border-radius:10px; color:inherit; background:rgba(255,255,255,.035); }
 .admin-credit-form .primary-button { white-space:nowrap; }
 @media(max-width:760px) { .credit-packages { grid-template-columns:1fr; } .credit-packages button { display:grid; grid-template-columns:1fr auto; align-items:center; } .credit-packages button span { grid-column:1/-1; } .admin-credit-form { grid-template-columns:1fr; } }
+
+
+.preview-notice{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:-14px 0 28px;padding:15px 17px;border:1px solid rgba(245,190,105,.28);border-radius:12px;background:rgba(190,135,55,.08)}
+.preview-notice>div{display:grid;gap:5px}
+.preview-notice b{font-size:12px;color:#f0cf98}
+.preview-notice span{font-size:10px;line-height:1.6;color:#b8a88d}
+.preview-notice .preview-tag{flex-shrink:0;padding:6px 8px;border:1px solid rgba(245,190,105,.25);border-radius:7px;color:#e7c58d;font-size:9px;font-weight:700;letter-spacing:1px}
+.credit-packages button:disabled{opacity:.48;cursor:not-allowed;transform:none}
+.credit-packages button:disabled:hover{border-color:var(--line,rgba(255,255,255,.12))}
+@media(max-width:560px){.preview-notice{align-items:flex-start;flex-direction:column}}
