@@ -15,6 +15,7 @@ create table if not exists public.generations (
   kind text not null check (kind in ('image','video')),
   prompt text not null check (char_length(prompt) between 3 and 3000),
   aspect_ratio text not null,
+  reference_asset_path text,
   status text not null default 'queued' check (status in ('queued','processing','succeeded','failed','storage_failed')),
   provider text not null default 'replicate',
   provider_prediction_id text unique,
