@@ -38,6 +38,11 @@ export default function Studio() {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [credits, setCredits] = useState<number | null>(null);
+  const [role, setRole] = useState<"customer" | "admin">("customer");
+  const [billingMessage, setBillingMessage] = useState("");
+  const [adminUserId, setAdminUserId] = useState("");
+  const [adminAmount, setAdminAmount] = useState("50");
+  const [adminReason, setAdminReason] = useState("");
 
   const supabase = useMemo(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
@@ -50,8 +55,8 @@ export default function Studio() {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     setUser(currentUser);
     if (!currentUser) return;
-    const { data } = await supabase.from("profiles").select("credits").eq("id", currentUser.id).single();
-    if (data) setCredits(data.credits);
+    const { data } = await supabase.from("profiles").select("credits,role").eq("id", currentUser.id).single();
+    if (data) { setCredits(data.credits); setRole(data.role === "admin" ? "admin" : "customer"); }
     const response = await fetch("/api/generations?limit=12", { cache: "no-store" });
     if (response.ok) {
       const payload = await response.json();
@@ -95,6 +100,29 @@ export default function Studio() {
     });
     if (error) setAuthError(error.message);
     else setLinkSent(true);
+  }
+
+  async function buyCredits(packageId: "starter" | "creator" | "studio") {
+    setBillingMessage("");
+    try {
+      const response = await fetch("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ packageId }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.url) throw new Error(payload.error || "Could not start checkout.");
+      window.location.assign(payload.url);
+    } catch (error) { setBillingMessage(error instanceof Error ? error.message : "Checkout could not start."); }
+  }
+
+  async function adjustCredits(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBillingMessage("");
+    try {
+      const response = await fetch("/api/admin/credits", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: adminUserId.trim(), amount: Number(adminAmount), reason: adminReason }) });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Credit adjustment failed.");
+      setBillingMessage("Credit adjustment applied.");
+      setAdminUserId(""); setAdminReason("");
+      await refreshAccount();
+    } catch (error) { setBillingMessage(error instanceof Error ? error.message : "Credit adjustment failed."); }
   }
 
   async function signOut() {
@@ -187,6 +215,10 @@ export default function Studio() {
       <header className="topbar"><div className="breadcrumb">Studio <span>/</span> Create</div><div className="top-actions"><span className="secure-pill"><span/> Secure workspace</span><button className="avatar-button">{(user.email || "U").slice(0,1).toUpperCase()}</button></div></header>
       <div className="content-wrap">
         <section className="hero-copy"><div className="eyebrow"><span className="eyebrow-line"/> THE CREATIVE ENGINE</div><h1>Imagine it.<br/><span>Bring it to life.</span></h1><p>Turn a thought into a visual experience. Start with an image or build a moving world with video.</p></section>
+
+        <section className="creator-card billing-card" id="credits"><div className="creator-heading"><div><span className="section-kicker">ACCOUNT / CREDITS</span><h2>Get more creative credits</h2></div><span className="job-id">{credits === null ? "—" : credits.toLocaleString()} AVAILABLE</span></div><div className="credit-packages"><button type="button" onClick={() => void buyCredits("starter")}><b>Starter</b><strong>$4.99</strong><span>100 credits</span></button><button type="button" onClick={() => void buyCredits("creator")}><b>Creator</b><strong>$19.99</strong><span>550 credits</span></button><button type="button" onClick={() => void buyCredits("studio")}><b>Studio</b><strong>$49.99</strong><span>1,600 credits</span></button></div>{billingMessage && <p className="inline-message">{billingMessage}</p>}<p className="muted">Secure one-time checkout. Credits are added after Stripe confirms successful payment.</p></section>
+
+        {role === "admin" && <section className="creator-card admin-card"><div className="creator-heading"><div><span className="section-kicker">ADMINISTRATION</span><h2>Manage user credits</h2></div><span className="live-indicator">ADMIN ONLY</span></div><form onSubmit={adjustCredits} className="admin-credit-form"><label>User ID<input value={adminUserId} onChange={(event) => setAdminUserId(event.target.value)} required placeholder="Supabase user UUID"/></label><label>Credit change<input type="number" value={adminAmount} onChange={(event) => setAdminAmount(event.target.value)} required min={-100000} max={100000}/></label><label>Reason<input value={adminReason} onChange={(event) => setAdminReason(event.target.value)} required minLength={5} maxLength={500} placeholder="Support adjustment or promotion"/></label><button className="primary-button" type="submit">Apply adjustment <ArrowUpRight size={16}/></button></form></section>}
 
         <section className="creator-card" id="create">
           <div className="creator-heading"><div><span className="section-kicker">01 / GENERATION</span><h2>What are we creating?</h2></div><div className="live-indicator"><span/> REAL MODEL EXECUTION</div></div>
