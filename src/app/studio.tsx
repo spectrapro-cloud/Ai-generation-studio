@@ -155,6 +155,7 @@ export default function Studio() {
   async function generate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
+    if (previewMode) { setMessage("Preview mode: generation is disabled. Connect the real services to create media."); return; }
     setBusy(true);
     setActiveJob(null);
     try {
