@@ -28,7 +28,6 @@ export default function Studio() {
   const [email, setEmail] = useState("");
   const [linkSent, setLinkSent] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [configurationError, setConfigurationError] = useState("");
   const [kind, setKind] = useState<"image" | "video">("image");
   const [prompt, setPrompt] = useState("");
   const [ratio, setRatio] = useState("1:1");
@@ -39,12 +38,10 @@ export default function Studio() {
   const [credits, setCredits] = useState<number | null>(null);
 
   const supabase = useMemo(() => {
-    try { return createClient(); }
-    catch (error) {
-      setConfigurationError(error instanceof Error ? error.message : "Supabase is not configured.");
-      return null;
-    }
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
+    try { return createClient(); } catch { return null; }
   }, []);
+  const configurationError = supabase ? "" : "Supabase is not configured. Ask the administrator to finish the service setup.";
 
   const refreshAccount = useCallback(async () => {
     if (!supabase) return;
@@ -91,7 +88,7 @@ export default function Studio() {
     setAuthError("");
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin }
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` }
     });
     if (error) setAuthError(error.message);
     else setLinkSent(true);
