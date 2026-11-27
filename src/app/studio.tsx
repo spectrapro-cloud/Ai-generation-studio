@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/browser";
 import {
   ArrowUpRight, Check, ChevronDown, CircleAlert, Film, Image as ImageIcon,
@@ -68,8 +69,9 @@ export default function Studio() {
 
   useEffect(() => {
     if (!activeJob || !["queued", "processing", "storage_failed"].includes(activeJob.status)) return;
+    const jobId = activeJob.id;
     const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/generations/${activeJob.id}`, { cache: "no-store" });
+      const response = await fetch(`/api/generations/${jobId}`, { cache: "no-store" });
       const payload = await response.json();
       if (response.ok) {
         setActiveJob(payload);
@@ -197,7 +199,7 @@ export default function Studio() {
         {activeJob && <section className="result-section">
           <div className="section-heading"><div><span className="section-kicker">02 / LIVE JOB</span><h2>Your creation</h2></div><span className="job-id">JOB {activeJob.id.slice(0,8).toUpperCase()}</span></div>
           <div className="result-card">
-            {activeJob.assetUrl ? (activeJob.kind === "image" ? <img className="generated-media" src={activeJob.assetUrl} alt="Generated image"/> : <video className="generated-media" src={activeJob.assetUrl} controls playsInline/>) : <div className="result-placeholder"><div className="result-orb"><Sparkles size={24}/></div><b>{activeJob.status === "queued" ? "Waiting in queue" : activeJob.status === "processing" ? "Creating your vision" : activeJob.status === "storage_failed" ? "Storage needs attention" : activeJob.status === "failed" ? "Generation failed" : "Preparing your result"}</b><span>{activeJob.error_message || (["queued","processing","storage_failed"].includes(activeJob.status) ? "Status is being checked against the provider and secure storage. Keep this workspace open." : "The provider completed, but the media file has not been confirmed in storage.")}</span>{["queued","processing"].includes(activeJob.status) && <LoaderCircle className="spin" size={18}/>}</div>}
+            {activeJob.assetUrl ? (activeJob.kind === "image" ? <Image className="generated-media" src={activeJob.assetUrl} alt="Generated image" width={1600} height={1200} unoptimized/> : <video className="generated-media" src={activeJob.assetUrl} controls playsInline/>) : <div className="result-placeholder"><div className="result-orb"><Sparkles size={24}/></div><b>{activeJob.status === "queued" ? "Waiting in queue" : activeJob.status === "processing" ? "Creating your vision" : activeJob.status === "storage_failed" ? "Storage needs attention" : activeJob.status === "failed" ? "Generation failed" : "Preparing your result"}</b><span>{activeJob.error_message || (["queued","processing","storage_failed"].includes(activeJob.status) ? "Status is being checked against the provider and secure storage. Keep this workspace open." : "The provider completed, but the media file has not been confirmed in storage.")}</span>{["queued","processing"].includes(activeJob.status) && <LoaderCircle className="spin" size={18}/>}</div>}
             <div className="result-details"><div><span className="status-label">{activeJob.status.replace("_"," ")}</span><p>{activeJob.prompt}</p></div>{activeJob.assetUrl && <a className="download-button" href={activeJob.assetUrl} target="_blank" rel="noreferrer">Open file <ArrowUpRight size={15}/></a>}</div>
           </div>
         </section>}
