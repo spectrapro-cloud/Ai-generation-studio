@@ -9,7 +9,7 @@ import {
   LoaderCircle, LogOut, Plus, Sparkles, WandSparkles, Zap
 } from "lucide-react";
 
-type Job = {
+type AdminUser = { id: string; email: string; display_name: string | null; credits: number; role: string };\n\ntype Job = {
   id: string;
   kind: "image" | "video";
   prompt: string;
@@ -40,7 +40,7 @@ export default function Studio() {
   const [credits, setCredits] = useState<number | null>(null);
   const [role, setRole] = useState<"customer" | "admin">("customer");
   const [billingMessage, setBillingMessage] = useState("");
-  const [adminUserId, setAdminUserId] = useState("");
+  const [adminUserId, setAdminUserId] = useState("");\n  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminAmount, setAdminAmount] = useState("50");
   const [adminReason, setAdminReason] = useState("");
 
@@ -56,7 +56,7 @@ export default function Studio() {
     setUser(currentUser);
     if (!currentUser) return;
     const { data } = await supabase.from("profiles").select("credits,role").eq("id", currentUser.id).single();
-    if (data) { setCredits(data.credits); setRole(data.role === "admin" ? "admin" : "customer"); }
+    if (data) {\n      setCredits(data.credits);\n      const isAdmin = data.role === "admin";\n      setRole(isAdmin ? "admin" : "customer");\n      if (isAdmin) {\n        const adminResponse = await fetch("/api/admin/credits", { cache: "no-store" });\n        if (adminResponse.ok) { const adminPayload = await adminResponse.json(); setAdminUsers(adminPayload.users || []); }\n      } else setAdminUsers([]);\n    }
     const response = await fetch("/api/generations?limit=12", { cache: "no-store" });
     if (response.ok) {
       const payload = await response.json();
@@ -218,7 +218,7 @@ export default function Studio() {
 
         <section className="creator-card billing-card" id="credits"><div className="creator-heading"><div><span className="section-kicker">ACCOUNT / CREDITS</span><h2>Get more creative credits</h2></div><span className="job-id">{credits === null ? "—" : credits.toLocaleString()} AVAILABLE</span></div><div className="credit-packages"><button type="button" onClick={() => void buyCredits("starter")}><b>Starter</b><strong>$4.99</strong><span>100 credits</span></button><button type="button" onClick={() => void buyCredits("creator")}><b>Creator</b><strong>$19.99</strong><span>550 credits</span></button><button type="button" onClick={() => void buyCredits("studio")}><b>Studio</b><strong>$49.99</strong><span>1,600 credits</span></button></div>{billingMessage && <p className="inline-message">{billingMessage}</p>}<p className="muted">Secure one-time checkout. Credits are added after Stripe confirms successful payment.</p></section>
 
-        {role === "admin" && <section className="creator-card admin-card"><div className="creator-heading"><div><span className="section-kicker">ADMINISTRATION</span><h2>Manage user credits</h2></div><span className="live-indicator">ADMIN ONLY</span></div><form onSubmit={adjustCredits} className="admin-credit-form"><label>User ID<input value={adminUserId} onChange={(event) => setAdminUserId(event.target.value)} required placeholder="Supabase user UUID"/></label><label>Credit change<input type="number" value={adminAmount} onChange={(event) => setAdminAmount(event.target.value)} required min={-100000} max={100000}/></label><label>Reason<input value={adminReason} onChange={(event) => setAdminReason(event.target.value)} required minLength={5} maxLength={500} placeholder="Support adjustment or promotion"/></label><button className="primary-button" type="submit">Apply adjustment <ArrowUpRight size={16}/></button></form></section>}
+        {role === "admin" && <section className="creator-card admin-card"><div className="creator-heading"><div><span className="section-kicker">ADMINISTRATION</span><h2>Manage user credits</h2></div><span className="live-indicator">ADMIN ONLY</span></div><form onSubmit={adjustCredits} className="admin-credit-form"><label>Account<select value={adminUserId} onChange={(event) => setAdminUserId(event.target.value)} required><option value="">Choose a user account</option>{adminUsers.map((item) => <option key={item.id} value={item.id}>{item.email || item.id} · {item.credits} credits</option>)}</select></label><label>Credit change<input type="number" value={adminAmount} onChange={(event) => setAdminAmount(event.target.value)} required min={-100000} max={100000}/></label><label>Reason<input value={adminReason} onChange={(event) => setAdminReason(event.target.value)} required minLength={5} maxLength={500} placeholder="Support adjustment or promotion"/></label><button className="primary-button" type="submit">Apply adjustment <ArrowUpRight size={16}/></button></form></section>}
 
         <section className="creator-card" id="create">
           <div className="creator-heading"><div><span className="section-kicker">01 / GENERATION</span><h2>What are we creating?</h2></div><div className="live-indicator"><span/> REAL MODEL EXECUTION</div></div>
