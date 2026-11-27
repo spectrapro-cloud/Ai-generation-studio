@@ -40,7 +40,7 @@ function applyTemplate(templateText: string | undefined, values: Record<string, 
   }
   const replace = (value: unknown): unknown => {
     if (typeof value === "string") {
-      return value.replace(/\{\{(prompt|aspect_ratio)\}\}/g, (_, key: string) => values[key] ?? "");
+      return value.replace(/\{\{(prompt|aspect_ratio|image_url)\}\}/g, (_, key: string) => values[key] ?? "");
     }
     if (Array.isArray(value)) return value.map(replace);
     if (value && typeof value === "object") {
