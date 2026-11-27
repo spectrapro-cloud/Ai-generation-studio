@@ -224,7 +224,7 @@ export default function Studio() {
       <a className="side-link" href="#library"><ImageIcon size={17}/> My generations</a>
       <div className="sidebar-bottom">
         <div className="credit-card"><div className="credit-top"><span>{previewMode ? "Sample credits" : "Available credits"}</span><Zap size={15}/></div><strong>{displayedCredits === null ? "—" : displayedCredits.toLocaleString()}</strong><small>{previewMode ? "Illustrative balance only · not spendable" : "Credits are managed securely on your account."}</small></div>
-        <div className="user-row"><div className="user-avatar">{(user.email || "U").slice(0,1).toUpperCase()}</div><div className="user-details"><b>{displayEmail}</b><small>{previewMode ? "Preview session" : "Signed in"}</small></div>{!previewMode && <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={16}/></button>}</div>
+        <div className="user-row"><div className="user-avatar">{displayEmail.slice(0,1).toUpperCase()}</div><div className="user-details"><b>{displayEmail}</b><small>{previewMode ? "Preview session" : "Signed in"}</small></div>{!previewMode && <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={16}/></button>}</div>
       </div>
     </aside>
 
