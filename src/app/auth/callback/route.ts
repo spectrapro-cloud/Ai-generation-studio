@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const origin = url.origin;
   if (!code) return NextResponse.redirect(new URL("/?auth=missing_code", origin));
 
-  let response = NextResponse.redirect(new URL("/", origin));
+  const response = NextResponse.redirect(new URL("/", origin));
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !anonKey) return NextResponse.redirect(new URL("/?auth=not_configured", origin));
