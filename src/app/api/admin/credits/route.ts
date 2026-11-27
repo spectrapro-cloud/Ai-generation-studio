@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-type AdminAccess = { ok: true; user: { id: string }; admin: ReturnType<typeof createAdminClient> } | { ok: false; response: NextResponse };\n\nasync function requireAdmin(): Promise<AdminAccess> {
+type AdminAccess = { ok: true; user: { id: string }; admin: ReturnType<typeof createAdminClient> } | { ok: false; response: NextResponse };
+
+async function requireAdmin(): Promise<AdminAccess> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, response: NextResponse.json({ error: "Sign in is required." }, { status: 401 }) };
@@ -31,7 +33,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let access;
+  let access: AdminAccess;
   try { access = await requireAdmin(); } catch {
     return NextResponse.json({ error: "Authentication service is unavailable." }, { status: 503 });
   }
